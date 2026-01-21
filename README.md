@@ -63,39 +63,25 @@ require 'prometheus_graph'
 
 # 1. Configure the Client
 # Replace with your Prometheus URL
-client = PrometheusGraph::Client.new(url: 'http://localhost:9090') 
+PrometheusGraph.configure do |config|
+  config.prom_url = 'http://127.0.0.1:9090' #Prometheus URL
+  config.theme = :light # Use light theme. Set to :dark for dark theme.
+end
 
-# 2. Fetch Data
-# Query: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
-data = client.query_range(
-  query: 'process_resident_memory_bytes', 
-  start_time: Time.now - (6 * 60 * 60), # 6 hours ago
-  end_time: Time.now,
-  step: '5m' # Resolution
-)
+# 2. Run PromQL query and create graph
 
-# 3. Render the Graph
-renderer = PrometheusGraph::Renderer.new(
-  title: "Memory Usage (Last 6 Hours)",
-  width: 1000
-)
+renderer = PrometheusGraph::GraphRenderer.new
+renderer.create_line_chart(query: "sum(rate(ifHCInOctets[6m]) * 8)") 
 
-renderer.render(data, output_file: 'memory_report.png')
-
-puts "Graph saved to memory_report.png!"
 
 ```
 
 ### 2. Customizing the Renderer
 
-You can adjust the graph title and width during initialization.
+You can adjust the graph title and pixel width at the graph creation time.
 
 ```ruby
-renderer = PrometheusGraph::Renderer.new(
-  title: "Production Traffic", 
-  width: 1200
-)
-
+renderer.create_line_chart(query: "sum(rate(ifHCInOctets[6m]) * 8)", title: "Network throughput", width: 1200)
 ```
 
 The `render` method automatically handles:
