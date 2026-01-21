@@ -15,6 +15,6 @@ module PrometheusGraph
     end
 
     class Configuration
-      attr_accessor :prom_url #, :param_2
+      attr_accessor :prom_url, :theme, :frindly_numbers #, :param_2
     end
 end
