@@ -1,13 +1,21 @@
 require 'gruff'
+require 'logger'
 require_relative './prom_client'
 require_relative './humanizer'
 require_relative './vertical_marker'
 
 module PrometheusGraph
   class GraphRenderer
-    def initialize()
+    NEON_PALETTE = %w[
+      #4facfe  #fa709a  #fee140  #00f2fe  #a8edea
+      #ff6347  #32cd32  #8a2be2  #ff1493  #40e0d0
+      #ffd700  #ff4500  #da70d6  #1e90ff  #7fff00
+      #ff00ff  #ffa500  #00ffff  #ff69b4  #00ff00
+    ]
+    def initialize(logger: Logger.new($stdout))
+      @logger = logger
       @config = PrometheusGraph.configuration
-      @client = PrometheusGraph::PromClient.new
+      @client = PrometheusGraph::PromClient.new(logger: @logger)
       @theme = PrometheusGraph.configuration.theme || :dark
     end
 
@@ -25,8 +33,17 @@ module PrometheusGraph
     end
 
     def render_line_chart(data_packet, title: "Prometheus Metrics", width: 1800, output_file: 'chart.png')
-      return puts "No data to render" if data_packet.nil?
+      # Render no-data image and return if data_packet has not time series data
+      if data_packet.nil? || data_packet[:series].empty?
+        render_no_data_image(output_file)
+        return
+      end
 
+      # Continue rendering chart
+      if data_packet[:series].size > 20
+        @logger.warn("You are plotting #{data_packet[:series].size} series. " \
+            "Colors will repeat after 20. Consider using 'topk(20, ...)' in PromQL.")
+      end
       g = Gruff::Line.new(width)
       g.title = title
       # g.theme_37signals
@@ -50,6 +67,9 @@ module PrometheusGraph
       g.bottom_margin = 40
       g.left_margin = 40
       g.right_margin = 40
+
+      # g.label_rotation = -45 # Angles the text so long dates don't overlap
+      # g.bottom_margin = 50   # Increase margin to make room for angled text
 
       apply_theme(g)
       # 1. Add the Data Series
@@ -83,7 +103,8 @@ module PrometheusGraph
       when :dark
         # A modern dark theme (Slack/Discord style)
         g.theme = {
-          colors: %w[#4facfe #00f2fe #fa709a #fee140 #a8edea], # Neon gradients
+          # colors: %w[#4facfe #00f2fe #fa709a #fee140 #a8edea], # Neon gradients
+          colors: NEON_PALETTE,
           marker_color: '#dddddd', # Axis text color
           font_color: '#ffffff',   # Title/Legend color
           background_colors: %w[#2b2b2b #1a1a1a] # Gradient background
@@ -166,7 +187,6 @@ module PrometheusGraph
       labels
     end
 
-
     def get_time_format(duration_seconds, step_hours)
       if step_hours >= 24
         # If steps are 1 day or larger, don't show specific hours
@@ -192,6 +212,32 @@ module PrometheusGraph
         # Day change logic (for long duration graphs)
         current.day != previous.day && (current.day % (step_hours / 24) == 0)
       end
+    end
+
+    # No data image
+    def render_no_data_image(output_file)
+      # Create a blank graph
+      g = Gruff::Line.new(@width)
+      g.title = @title
+      g.theme = {
+        colors: [], # No colors needed
+        marker_color: '#aaaaaa',
+        background_colors: %w[#e1e1e1 #e1e1e1] # Gray background
+      }
+      
+      # Hide the axes to make it look like a placeholder
+      g.hide_line_markers = true
+      g.hide_legend = true
+      
+      # Gruff doesn't have a simple "Center Text" method, 
+      # so we use the title to convey the message.
+      g.title = "NO DATA FOUND"
+      
+      # Add a dummy data point of 0 just to allow Gruff to render the file without crashing
+      g.data(:none, [0]) 
+      
+      g.write(output_file)
+      puts "ℹ️  Generated 'No Data' placeholder at #{output_file}"
     end
   end
 end

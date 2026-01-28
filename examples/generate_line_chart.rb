@@ -6,4 +6,5 @@ PrometheusGraph.configure do |config|
 end
 
 renderer = PrometheusGraph::GraphRenderer.new
-renderer.create_line_chart(query: "sum(rate(ifHCInOctets{instance=~\".*GW.*\"}[6m]) * 8)")
+image = renderer.create_line_chart(query: "sum(rate(ifHCInOctets{instance=~\".*GW.*\"}[6m]) * 8)")
+puts image.filename
