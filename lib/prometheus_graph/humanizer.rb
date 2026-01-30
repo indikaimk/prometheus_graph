@@ -18,6 +18,7 @@ module Humanizer
     unit_label = UNITS[exponent]
 
     # 4. Scale all data points
+    # puts series_data[0][:values]
     scaled_series = series_data.map do |s|
       {
         label: s[:label],

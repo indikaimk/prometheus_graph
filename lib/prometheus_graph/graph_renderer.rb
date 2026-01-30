@@ -68,7 +68,7 @@ module PrometheusGraph
       g.left_margin = 40
       g.right_margin = 40
 
-      # g.label_rotation = -45 # Angles the text so long dates don't overlap
+      g.label_rotation = -45 # Angles the text so long dates don't overlap
       # g.bottom_margin = 50   # Increase margin to make room for angled text
 
       apply_theme(g)
@@ -81,7 +81,7 @@ module PrometheusGraph
       
       # Add the new unit to the Title or Y-Axis label
       # g.y_axis_label = unit 
-      g.y_axis_label_format = ->(v) { format("%d #{unit}", v.round) }
+      g.y_axis_label_format = ->(v) { format("%.2f #{unit}", v.round(2)) }
       
       # Use the scaled data
       scaled_data.each do |s|
