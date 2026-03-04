@@ -15,7 +15,7 @@ module PrometheusGraph
     def initialize(logger: Logger.new($stdout))
       @logger = logger
       @config = PrometheusGraph.configuration
-      @client = PrometheusGraph::PromClient.new(logger: @logger)
+      @client = PrometheusGraph::PromClient.new(logger: @logger, cert_file: @config.url_cert_file)
       @theme = PrometheusGraph.configuration.theme || :dark
     end
 

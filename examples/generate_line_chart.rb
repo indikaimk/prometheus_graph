@@ -2,6 +2,7 @@ require_relative '../lib/prometheus_graph'
 
 PrometheusGraph.configure do |config|
   config.prom_url = 'http://127.0.0.1:9090'
+  config.url_cert_file = ENV['CERT_FILE_PATH']
   config.theme = :light
 end
 

@@ -5,21 +5,10 @@ require 'openssl'
 
 module PrometheusGraph
   class PromClient
-    def initialize(logger: Logger.new($stdout))
-      # 1. Create a custom certificate store
-      cert_store = OpenSSL::X509::Store.new
-      cert_store.set_default_paths # Keep standard internet certs working
-
-      # 2. Add your self-signed Prometheus certificate
-      cert_store.add_file('/home/indika/projects/prometheus_report_deployment/playbooks/secrets/prometheus.crt')
-
+    def initialize(logger: Logger.new($stdout), cert_file: nil)
+      ssl_params = get_ssl_params(cert_file)
       @config = PrometheusGraph.configuration
-      @client = Prometheus::ApiClient.client(url: @config.prom_url,
-        ssl: { 
-          # verify: false
-          cert_store: cert_store
-        }
-      )
+      @client = Prometheus::ApiClient.client(url: @config.prom_url, ssl: ssl_params)
       @logger = logger
     end
 
@@ -69,6 +58,21 @@ module PrometheusGraph
     end
 
     private
+
+    # Create a hash of SSL params for Prometheus API client
+    def get_ssl_params(cert_file)
+      if cert_file
+        # 1. Create a custom certificate store
+        cert_store = OpenSSL::X509::Store.new
+        cert_store.set_default_paths # Keep standard internet certs working
+
+        # 2. Add your self-signed Prometheus certificate
+        cert_store.add_file('/home/indika/projects/prometheus_report_deployment/playbooks/secrets/prometheus.crt')
+        return {cert_store: cert_store}
+      else
+        return {}
+      end
+    end
 
     # def parse_response(response)
     #   raw_results = response['result']
