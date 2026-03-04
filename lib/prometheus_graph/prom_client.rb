@@ -1,12 +1,25 @@
 require 'prometheus/api_client'
 require 'date'
 require 'logger'
+require 'openssl'
 
 module PrometheusGraph
   class PromClient
     def initialize(logger: Logger.new($stdout))
+      # 1. Create a custom certificate store
+      cert_store = OpenSSL::X509::Store.new
+      cert_store.set_default_paths # Keep standard internet certs working
+
+      # 2. Add your self-signed Prometheus certificate
+      cert_store.add_file('/home/indika/projects/prometheus_report_deployment/playbooks/secrets/prometheus.crt')
+
       @config = PrometheusGraph.configuration
-      @client = Prometheus::ApiClient.client(url: @config.prom_url)
+      @client = Prometheus::ApiClient.client(url: @config.prom_url,
+        ssl: { 
+          # verify: false
+          cert_store: cert_store
+        }
+      )
       @logger = logger
     end
 

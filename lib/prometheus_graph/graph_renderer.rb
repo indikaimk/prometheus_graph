@@ -19,20 +19,20 @@ module PrometheusGraph
       @theme = PrometheusGraph.configuration.theme || :dark
     end
 
-    def create_line_chart(title: "Prometheus Metrics", 
+    def create_line_chart(title: nil, 
                           query: "process_cpu_seconds_total", 
                           start_time: Time.now - (24 * 60 * 60), 
                           end_time: Time.now,
                           step: '5m',
                           output_file: "output/line_chart.png",
                           y_axis_datatype: :number,
-                          width: 1800)
+                          width: '1800x1012')
 
       data = @client.query_range(query: query, start_time: start_time, end_time: end_time, step: step)
       render_line_chart(data, title: title, output_file: output_file)
     end
 
-    def render_line_chart(data_packet, title: "Prometheus Metrics", width: 1800, output_file: 'chart.png')
+    def render_line_chart(data_packet, title: "Prometheus Metrics", width: '1800x1012', output_file: 'chart.png')
       # Render no-data image and return if data_packet has not time series data
       if data_packet.nil? || data_packet[:series].empty?
         render_no_data_image(output_file)
@@ -45,7 +45,7 @@ module PrometheusGraph
             "Colors will repeat after 20. Consider using 'topk(20, ...)' in PromQL.")
       end
       g = Gruff::Line.new(width)
-      g.title = title
+      g.title = title unless title.nil?
       # g.theme_37signals
       # g.marker_font_size = 12
 
