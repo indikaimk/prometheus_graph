@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    prometheus_graph (0.1.0)
+    prometheus_graph (0.3.0)
       gruff
       prometheus-api-client
 
@@ -90,6 +90,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  gruff
   irb
   minitest (~> 5.16)
   prometheus_graph!
