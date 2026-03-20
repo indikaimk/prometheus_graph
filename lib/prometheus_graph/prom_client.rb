@@ -67,7 +67,7 @@ module PrometheusGraph
         cert_store.set_default_paths # Keep standard internet certs working
 
         # 2. Add your self-signed Prometheus certificate
-        cert_store.add_file('/home/indika/projects/prometheus_report_deployment/playbooks/secrets/prometheus.crt')
+        cert_store.add_file(cert_file)
         return {cert_store: cert_store}
       else
         return {}
