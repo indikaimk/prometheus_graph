@@ -26,6 +26,41 @@ module Humanizer
       }
     end
 
-    return scaled_series, unit_label
+    scaled_max = max_val/divisor
+    return scaled_series, unit_label, scaled_max
+  end
+
+  # Calculates a clean, human-readable step size for the Y-axis
+  def self.calculate_nice_axis(max_value, target_ticks = 4)
+    # Fallback for flatlines
+    return { increment: 1, max: target_ticks } if max_value <= 0.0 
+    
+    # 1. Figure out roughly how big each step should be
+    rough_step = max_value.to_f / target_ticks
+    
+    # 2. Find the mathematical magnitude (e.g., 1_000_000 for Megabits)
+    magnitude = 10 ** Math.log10(rough_step).floor
+    
+    # 3. Normalize the step to a decimal between 1.0 and 9.99
+    fraction = rough_step / magnitude
+    
+    # 4. Snap it to a clean interval of 1, 2, 5, or 10
+    nice_fraction = if fraction <= 1.5
+                      1.0
+                    elsif fraction <= 3.0
+                      2.0
+                    elsif fraction <= 7.0
+                      5.0
+                    else
+                      10.0
+                    end
+                    
+    # 5. Multiply back up to the original scale
+    increment = nice_fraction * magnitude
+    
+    # 6. Calculate the new, perfectly rounded maximum value
+    nice_max = (max_value / increment).ceil * increment
+    
+    { increment: increment, max: nice_max }
   end
 end

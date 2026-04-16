@@ -72,13 +72,16 @@ module PrometheusGraph
       # g.bottom_margin = 50   # Increase margin to make room for angled text
 
       apply_theme(g)
-      # 1. Add the Data Series
-      # data_packet[:series].each do |s|
-      #   g.data(s[:label], s[:values])
-      # end
 
-      scaled_data, unit = Humanizer.auto_scale(data_packet[:series])
-      
+      scaled_data, unit, global_max = Humanizer.auto_scale(data_packet[:series])
+
+      # 1. Ask the algorithm for the perfect axis boundaries
+      axis_config = Humanizer.calculate_nice_axis(global_max)
+      # 2. Force Gruff to use these boundaries instead of its internal math
+      g.y_axis_increment = axis_config[:increment]
+      g.maximum_value = axis_config[:max]
+      g.minimum_value = 0 # Ensures the bottom is always grounded at zero
+
       # Add the new unit to the Title or Y-Axis label
       # g.y_axis_label = unit 
       g.y_axis_label_format = ->(v) { format("%.2f #{unit}", v.round(2)) }
