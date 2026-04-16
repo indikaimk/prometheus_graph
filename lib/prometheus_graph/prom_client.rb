@@ -6,22 +6,23 @@ require 'openssl'
 module PrometheusGraph
   class PromClient
     def initialize(logger: Logger.new($stdout), cert_file: nil)
+      @logger = logger
       ssl_params = get_ssl_params(cert_file)
       @config = PrometheusGraph.configuration
       @client = Prometheus::ApiClient.client(url: @config.prom_url, ssl: ssl_params)
-      @logger = logger
     end
 
     def query_range(query:, start_time:, end_time:, step: '1h')
-      queries = query.is_a?(Hash) ? query : { "" => query }
+      queries = query.is_a?(Array) ? query : [query]
 
       combined_series = []
       common_timestamps = nil
 
       # 2. Iterate through every query provided
-      queries.each do |legend_prefix, promql|
+      queries.each do |query|
+        # puts legend_prefix
         response = @client.query_range(
-          query: promql,
+          query: query[:query],
           start: start_time.iso8601,
           end: end_time.iso8601,
           step: step
@@ -35,7 +36,7 @@ module PrometheusGraph
         end
 
         # 2. Parse
-        parsed = parse_single_result(response['result'], legend_prefix)
+        parsed = parse_single_result(response['result'], query[:legend_template])
         
         # 3. Capture timestamps from the first SUCCESSFUL query
         common_timestamps ||= parsed[:timestamps]
@@ -67,9 +68,12 @@ module PrometheusGraph
         cert_store.set_default_paths # Keep standard internet certs working
 
         # 2. Add your self-signed Prometheus certificate
+        @logger.info("[PrometheusGraph] Loading certificate file #{cert_file}")
         cert_store.add_file(cert_file)
+
         return {cert_store: cert_store}
       else
+        @logger.warn("[PrometheusGraph] No Certificate file provided")
         return {}
       end
     end
@@ -93,19 +97,21 @@ module PrometheusGraph
     #   { timestamps: timestamps, series: series_data }
     # end
 
-    def parse_single_result(raw_results, prefix)
+    def parse_single_result(raw_results, legend_template)
       timestamps = raw_results.first['values'].map { |v| v[0] }
 
       series_data = raw_results.map do |res|
         # Generate the standard Prometheus label (e.g. "instance=x,job=y")
-        raw_label = format_label(res['metric'])
+        # raw_label = format_label(res['metric'], legend_template)
+        raw_label = format_legend(res['metric'], legend_template)
         
         # If the user provided a prefix (from the Hash key), prepend it.
         # Result: "Errors - instance=x" vs "instance=x"
-        final_label = prefix.empty? ? raw_label : "#{prefix} #{raw_label}"
+        # final_label = prefix.empty? ? raw_label : "#{prefix} #{raw_label}"
+        # final_label = prefix.empty? ? raw_label : prefix
 
         {
-          label: final_label,
+          label: raw_label,
           values: res['values'].map { |v| v[1].to_f }
         }
       end
@@ -127,6 +133,28 @@ module PrometheusGraph
       # Remove the internal '__name__' tag if present to keep it clean
       tags = metric_hash.reject { |k, _| k == '__name__' }
       tags.map { |k, v| "#{k}=#{v}" }.join(",")
+    end
+
+    def format_legend(metric_hash, template)
+      # 1. The Fallback
+      # If the user didn't write a legend template in the DSL, we generate a 
+      # clean default string by joining all labels (except the internal __name__)
+      if template.nil? || template.strip.empty?
+        return metric_hash.reject { |k, _| k == "__name__" }
+                          .map { |k, v| "#{k}=\"#{v}\"" }
+                          .join(", ")
+      end
+
+      # 2. The Template Engine
+      # Look for anything inside double curly braces, capture the word inside,
+      # and swap it with the corresponding value from the Prometheus HTTP response.
+      template.gsub(/\{\{([a-zA-Z0-9_]+)\}\}/) do |match|
+        label_key = $1 # Extracts the exact string inside the braces (e.g., "instance")
+        
+        # We use .fetch so that if the user makes a typo in their DSL (like {{instence}}), 
+        # it safely prints "unknown" instead of throwing a Nil error or crashing the graph.
+        metric_hash.fetch(label_key, "unknown")
+      end
     end
   end
 end
